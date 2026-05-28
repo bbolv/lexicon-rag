@@ -4,20 +4,20 @@ from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from huggingface_hub import InferenceClient
 
-# 1. Cargar las variables de entorno desde el archivo .env
+# Load the environment variables from the .env file
 load_dotenv()
 hf_token = os.getenv('HF_TOKEN')
 
-# 2. Inicializar el cliente de la API
+# Initialize the Hugging Face Interface client
 client = InferenceClient(token=hf_token)
 
-# 3. Inicializar la base de datos vectorial persistente local
+# Initialize the ChromaDB client (persistent local vector database)
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 
-# 4. Crear (o cargar si ya existe) la colección en el disco duro
+# Create the collection on the hard disk (or load if it already exists)
 collection = chroma_client.get_or_create_collection(name="libro_ia_collection")
 
-# 5. El texto del libro
+# Load the text of the book
 libro_texto = """
 Capítulo 1: El Despertar de la IA. Durante años, la humanidad creyó que las máquinas
 solo seguirían reglas lógicas estrictas. Sin embargo, la llegada de las redes neuronales
@@ -25,7 +25,7 @@ profundas cambió el paradigma. Los modelos ya no solo calculaban; ahora parecí
 Esto generó un debate ético sin precedentes en la comunidad científica global.
 """
 
-# 6. Dividimos el texto en Chunks
+# Create a text splitter to divide the text into chunks
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=150,
     chunk_overlap=30,
@@ -35,24 +35,24 @@ chunks = text_splitter.create_documents([libro_texto])
 
 print(f"Generando embeddings para {len(chunks)} chunks y guardando en ChromaDB...\n")
 
-# Listas temporales para hacer una inserción masiva eficiente
+# Temporal lists to make an efficient bulk insertion
 documents_texts = []
 embeddings_list = []
 documents_ids = []
 
-# 7. Iteramos por cada chunk para obtener su embedding
+# Iterate over each chunk to get its embedding
 for i, chunk in enumerate(chunks):
     embedding = client.feature_extraction(
         text=chunk.page_content,
         model="sentence-transformers/all-MiniLM-L6-v2"
     )
     
-    # Agrupamos los datos en nuestras listas
+    # Group the data in our lists
     documents_texts.append(chunk.page_content)
     embeddings_list.append(embedding)
     documents_ids.append(f"id_chunk_{i+1}")
 
-# 8. Guardamos físicamente los vectores y los textos en ChromaDB
+# Save the embeddings and texts physically in ChromaDB
 collection.add(
     embeddings=embeddings_list,
     documents=documents_texts,
