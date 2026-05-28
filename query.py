@@ -33,13 +33,34 @@ resultados = collection.query(
     n_results=2
 )
 
-# 6. Desplegamos los fragmentos recuperados
-# ChromaDB nos regresa una estructura con 'documents' y 'distances'
-for i in range(len(resultados['documents'][0])):
-    texto_recuperado = resultados['documents'][0][i]
-    distancia = resultados['distances'][0][i]
-    id_chunk = resultados['ids'][0][i]
-    
-    print(f"🎯 --- Fragmento Recuperado {i+1} ({id_chunk}) ---")
-    print(f"Distancia geométrica (menor es más cercano): {distancia:.4f}")
-    print(f"Contenido: {texto_recuperado}\n")
+# 6. Unimos los fragmentos recuperados en una sola cadena de texto (el Contexto)
+fragmentos = resultados['documents'][0]
+contexto_extraido = "\n".join(fragmentos)
+
+print("2. Contexto relevante recuperado de ChromaDB.")
+
+# 6. Generación (Generation) - Estructura moderna de Chat Messages
+print("3. Enviando pregunta + contexto al LLM generativo en Hugging Face...\n")
+
+# Construimos las instrucciones de restricción para el sistema
+instrucciones_sistema = f"""Eres un asistente experto en Inteligencia Artificial y Ciencia. 
+Tu único objetivo es responder la pregunta del usuario utilizando exclusivamente el contexto proporcionado abajo.
+
+[CONTEXTO]
+{contexto_extraido}
+
+Instrucciones estrictas: Responde con claridad, fluidez y basándote únicamente en el contexto anterior. Si el contexto no contiene la información para responder, di textualmente: 'No encontré esa información en el documento'."""
+
+# 7. Usamos la API unificada de Chat Completions
+respuesta_chat = client.chat.completions.create(
+    model="meta-llama/Meta-Llama-3-8B-Instruct",
+    messages=[
+        {"role": "system", "content": instrucciones_sistema},
+        {"role": "user", "content": pregunta_usuario}
+    ],
+    max_tokens=150,
+    temperature=0.3
+)
+
+print("🎯 --- Respuesta Final del RAG ---")
+print(respuesta_chat.choices[0].message.content.strip())
